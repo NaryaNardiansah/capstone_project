@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Secrets & local scripts (jangan di-commit!)
+setup_git_push.ps1
+deploy_huggingface.ps1
+.env
+.env.*
+*.env
+
+# Virtual environments
+python-env/
+.venv/
+venv/
+env/
+
+# Model file (besar, bisa di-generate ulang dengan train.py)
+# Uncomment baris di bawah jika ingin exclude model:
+# *.keras
+# *.h5
+
+# Database lokal
+cabai_db.sqlite
+
+# Logs
+*.log
+openrouter_error.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Next.js
+frontend/.next/
+frontend/node_modules/
+frontend/.vercel/
+frontend/out/
+
+# Root node_modules (jika ada)
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Jupyter
+.ipynb_checkpoints/
