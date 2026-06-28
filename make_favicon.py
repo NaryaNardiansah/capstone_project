@@ -15,12 +15,12 @@ w, h = img.size
 print(f"Ukuran asli: {w} x {h}")
 
 # ── Koordinat crop fokus wajah ────────────────────────────────────────────────
-# Foto 954x1270. Wajah ada di sekitar x:200-750, y:230-680
-# Kita ambil area persegi di tengah wajah
-crop_left   = 230
-crop_top    = 200
-crop_right  = 740
-crop_bottom = 680
+# Foto ASLI adalah 3000x4000 (bukan 954x1270!)
+# Wajah ada di sekitar x:700-2300, y:600-2100
+crop_left   = 850
+crop_top    = 1250
+crop_right  = 2350
+crop_bottom = 2850
 
 face = img.crop((crop_left, crop_top, crop_right, crop_bottom))
 face_w, face_h = face.size
