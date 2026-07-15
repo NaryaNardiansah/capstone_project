@@ -63,6 +63,11 @@ class UserAuth(BaseModel):
     username: str
     password: str
 
+class UserRegister(BaseModel):
+    username: str
+    email: str
+    password: str
+
 # Inisialisasi Security HTTPBearer
 security_optional = HTTPBearer(auto_error=False)
 security_required = HTTPBearer(auto_error=True)
@@ -92,11 +97,11 @@ async def get_optional_user(credentials: HTTPAuthorizationCredentials = Depends(
 # ==========================================
 
 @app.post("/register", tags=["Autentikasi"])
-def register(user: UserAuth):
+def register(user: UserRegister):
     """Mendaftarkan akun pengunjung baru"""
-    if not user.username or not user.password:
-        raise HTTPException(status_code=400, detail="Username dan password tidak boleh kosong.")
-    success, err = database.register_user(user.username, user.password)
+    if not user.username or not user.password or not user.email:
+        raise HTTPException(status_code=400, detail="Username, email, dan password tidak boleh kosong.")
+    success, err = database.register_user(user.username, user.email, user.password)
     if not success:
         raise HTTPException(status_code=400, detail=str(err))
     return {"status": "success", "message": "Pendaftaran berhasil. Silakan login."}
@@ -118,6 +123,32 @@ def logout(current_user: dict = Depends(get_current_user)):
 # ==========================================
 # ENDPOINT SISTEM & KLASIFIKASI
 # ==========================================
+
+# Dataset count persistence
+DATASET_COUNT_FILE = "dataset_count.txt"
+
+def get_dataset_count() -> int:
+    try:
+        with open(DATASET_COUNT_FILE, "r", encoding="utf-8") as f:
+            return int(f.read().strip())
+    except Exception:
+        return 0
+
+def set_dataset_count(count: int) -> None:
+    with open(DATASET_COUNT_FILE, "w", encoding="utf-8") as f:
+        f.write(str(count))
+
+@app.get("/dataset/count", tags=["Dataset"])
+def dataset_count():
+    return {"total": get_dataset_count()}
+
+@app.post("/dataset/set", tags=["Dataset"])
+def dataset_set(payload: dict):
+    count = payload.get("total")
+    if not isinstance(count, int) or count < 0:
+        raise HTTPException(status_code=400, detail="Invalid count")
+    set_dataset_count(count)
+    return {"status": "success", "total": count}
 
 @app.get("/", tags=["Sistem"])
 def read_root():

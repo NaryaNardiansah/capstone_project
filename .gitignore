@@ -13,6 +13,8 @@ build/
 # Secrets & local scripts (jangan di-commit!)
 setup_git_push.ps1
 deploy_huggingface.ps1
+quick_push.ps1
+start.ps1
 .env
 .env.*
 *.env
@@ -25,8 +27,8 @@ env/
 
 # Model file (besar, bisa di-generate ulang dengan train.py)
 # Uncomment baris di bawah jika ingin exclude model:
-# *.keras
-# *.h5
+*.keras
+*.h5
 
 # Database lokal
 cabai_db.sqlite
@@ -70,3 +72,6 @@ htmlcov/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Dataset
+dataset/

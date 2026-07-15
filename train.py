@@ -20,9 +20,12 @@ FINE_TUNE_LR = 1e-5
 # Label mapping dari nama folder ke nama tampilan
 FOLDER_TO_LABEL = {
     "cabai merah keriting": "Cabai Merah Keriting",
-    "cabai rawit": "Cabai Setan",
+    "cabai setan": "Cabai Setan",
+    "cabai rawit setan": "Cabai Setan",
     "cabai rawit celeng": "Cabai Celeng",
+    "cabai celeng": "Cabai Celeng",
     "cabai rawit putih": "Cabai Putih",
+    "cabai putih": "Cabai Putih",
 }
 
 

@@ -103,6 +103,7 @@ def init_db():
                     CREATE TABLE IF NOT EXISTS users (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         username VARCHAR(100) UNIQUE NOT NULL,
+                        email VARCHAR(255) UNIQUE NULL,
                         password_hash VARCHAR(255) NOT NULL,
                         created_at DATETIME NOT NULL
                     )
@@ -134,6 +135,11 @@ def init_db():
                     cursor.execute("ALTER TABLE prediksi ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL")
                 except Error:
                     pass
+                # Migrasi: tambah kolom email di users jika belum ada
+                try:
+                    cursor.execute("ALTER TABLE users ADD COLUMN email VARCHAR(255) UNIQUE NULL AFTER username")
+                except Error:
+                    pass
                 conn.commit()
                 cursor.close()
                 conn.close()
@@ -156,6 +162,7 @@ def init_db():
                 CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     username TEXT UNIQUE NOT NULL,
+                    email TEXT UNIQUE NULL,
                     password_hash TEXT NOT NULL,
                     created_at TIMESTAMP NOT NULL
                 )
@@ -186,6 +193,11 @@ def init_db():
                 cursor.execute("ALTER TABLE prediksi ADD COLUMN user_id INTEGER")
             except Exception:
                 pass
+            # Migrasi: tambah kolom email di users jika belum ada
+            try:
+                cursor.execute("ALTER TABLE users ADD COLUMN email TEXT UNIQUE")
+            except Exception:
+                pass
             conn.commit()
             conn.close()
             print("Database SQLite diinisialisasi dengan sukses.")
@@ -199,10 +211,11 @@ def init_db():
 # OPERASI AUTENTIKASI PENGGUNA
 # ==========================================
 
-def register_user(username, password):
+def register_user(username, email, password):
     """Mendaftarkan user baru ke database"""
     global USE_SQLITE
     username = username.strip()
+    email = email.strip() if email else None
     hashed_pwd = hash_password(password)
     created_at = datetime.now()
     
@@ -213,8 +226,8 @@ def register_user(username, password):
         try:
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)",
-                (username, hashed_pwd, created_at)
+                "INSERT INTO users (username, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
+                (username, email, hashed_pwd, created_at)
             )
             conn.commit()
             conn.close()
@@ -230,8 +243,8 @@ def register_user(username, password):
         try:
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO users (username, password_hash, created_at) VALUES (%s, %s, %s)",
-                (username, hashed_pwd, created_at)
+                "INSERT INTO users (username, email, password_hash, created_at) VALUES (%s, %s, %s, %s)",
+                (username, email, hashed_pwd, created_at)
             )
             conn.commit()
             cursor.close()
