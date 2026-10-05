@@ -7,6 +7,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import io
 from PIL import Image
@@ -14,6 +15,7 @@ from datetime import datetime
 import database
 import klasifikasi
 import predict_utils
+import storage_manager
 
 # Inisialisasi FastAPI
 app = FastAPI(
@@ -32,6 +34,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount folder static uploads untuk akses thumbnail WebP terkompresi
+storage_manager.ensure_upload_dir()
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount("/api/uploads", StaticFiles(directory="uploads"), name="api_uploads")
 
 # Inisialisasi Database
 db_type, db_err = database.init_db()
@@ -162,8 +169,9 @@ def read_root():
         "database_connected": db_type is not None,
         "database_type": db_type,
         "developer": {
-            "nama": "Difa Fadhilah",
-            "nim": "2311081010",
+            "nama": "Muhammad Narya Nardiansah",
+            "nim": "2301091015",
+            "prodi": "Manajemen Informasi",
             "institusi": "Politeknik Negeri Padang"
         }
     }
@@ -217,25 +225,38 @@ async def predict_chili(
             print(f"Prediksi model lokal: {prediction_label} ({confidence * 100:.2f}%)")
 
         if prediction_label == "Bukan Cabai":
-            return JSONResponse(
-                status_code=400,
-                content={
-                    "status": "failed",
-                    "filename": file.filename,
-                    "message": "Gambar yang diunggah bukan merupakan gambar cabai.",
-                    "predicted_class": "Bukan Cabai",
-                    "confidence": 1.0,
-                    "confidence_percentage": "100.00%"
-                }
-            )
+            return {
+                "status": "success",
+                "filename": file.filename,
+                "predicted_class": "Bukan Cabai",
+                "confidence": confidence,
+                "confidence_percentage": f"{confidence * 100:.2f}%",
+                "all_probabilities": {
+                    name: f"{score * 100:.2f}%" for name, score in all_probs.items()
+                },
+                "message": "Citra yang diunggah terdeteksi bukan merupakan cabai rawit.",
+                "database_saved": False,
+                "user_type": "user" if current_user else "guest",
+                "username": current_user["username"] if current_user else None,
+                "timestamp": datetime.now().isoformat()
+            }
 
         # Simpan hasil ke Database (kaitkan dengan user jika ada)
         user_id = current_user["user_id"] if current_user else None
+
+        # Fitur 2, 3, dan 4: Kompresi WebP ringan, kuota FIFO per user, & pembersihan TTL
+        image_url = storage_manager.process_prediction_photo(
+            contents=contents,
+            original_filename=file.filename,
+            user_id=user_id
+        )
+
         db_success, db_err = database.save_prediction(
             nama_file=file.filename,
             hasil_prediksi=prediction_label,
             confidence_score=confidence * 100,
-            user_id=user_id
+            user_id=user_id,
+            image_url=image_url
         )
         
         return {
@@ -247,6 +268,7 @@ async def predict_chili(
             "all_probabilities": {
                 name: f"{score * 100:.2f}%" for name, score in all_probs.items()
             },
+            "image_url": image_url,
             "database_saved": db_success,
             "database_error": str(db_err) if db_err else None,
             "user_type": "user" if current_user else "guest",

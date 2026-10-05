@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@700;800&family=Space+Grotesk:wght@600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -15,11 +13,16 @@
     font-family: 'Inter', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 
   body {
     background-color: #fafaf9;
     color: #1c1917;
+    overflow-x: hidden;
+    max-width: 100vw;
+    width: 100%;
   }
 
   ::-webkit-scrollbar {
@@ -181,16 +184,6 @@ video {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-  }
-}
 
 @keyframes spin {
   from { transform: rotate(0deg); }
@@ -431,7 +424,18 @@ video {
 }
 
 /* Utility classes */
-.ls-fade-in        { animation: ls-fade-in 0.5s ease-out forwards; }
+.ls-fade-in {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  height: 100vh !important;
+  z-index: 99999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  animation: ls-fade-in 0.5s ease-out forwards;
+}
 .ls-card-in        { animation: ls-card-in 0.9s cubic-bezier(0.34,1.56,0.64,1) 0.2s both; }
 .ls-logo-in        { animation: ls-slide-down 0.6s cubic-bezier(0.34,1.4,0.64,1) 0.4s both; }
 .ls-photo-reveal   { animation: ls-photo-reveal 1s cubic-bezier(0.34,1.2,0.64,1) 0.7s both; }
@@ -439,7 +443,7 @@ video {
 .ls-photo-pulse    { animation: ls-photo-pulse 2.8s ease-in-out infinite 1.8s; }
 .ls-slide-up       { animation: ls-slide-up 0.55s cubic-bezier(0.34,1.2,0.64,1) var(--delay,0s) both; }
 .ls-badge-pop      { animation: ls-badge-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) var(--delay,0s) both; }
-.ls-typewriter     { animation: ls-typewriter 0.9s steps(20,end) 1.6s both, ls-typewriter-cursor 0.6s step-end 1.6s 6; overflow: hidden; white-space: nowrap; border-right: 2px solid #fb7185; max-width: 0; display: inline-block; }
+.ls-typewriter     { animation: ls-typewriter 0.9s steps(20,end) 1.6s both, ls-typewriter-cursor 0.6s step-end 1.6s 6; overflow: hidden; white-space: nowrap; border-right: 2px solid #fb7185; display: inline-block; }
 .ls-rabbit-hop     { animation: ls-rabbit-hop var(--dur,1.1s) ease-in-out var(--delay,0s) infinite; }
 .ls-rabbit-hop-alt { animation: ls-rabbit-hop-alt var(--dur,1.4s) ease-in-out var(--delay,0s) infinite; }
 .ls-celebrate      { animation: ls-celebrate-bounce 0.5s ease-in-out infinite !important; }
@@ -454,16 +458,180 @@ video {
 .ls-exit-card      { animation: ls-exit-card 0.6s cubic-bezier(0.4,0,0.2,1) forwards !important; }
 .ls-exit-bg        { animation: ls-exit-bg 0.7s ease-in-out 0.3s forwards !important; }
 
-@media (prefers-reduced-motion: reduce) {
-  .ls-fade-in, .ls-card-in, .ls-logo-in, .ls-photo-reveal,
-  .ls-ring-expand, .ls-photo-pulse, .ls-slide-up, .ls-badge-pop,
-  .ls-typewriter, .ls-rabbit-hop, .ls-rabbit-hop-alt,
-  .ls-celebrate, .ls-heart-float, .ls-carrot-spin, .ls-logo-float,
-  .ls-logo-glow, .ls-orb-1, .ls-orb-2, .ls-orb-3, .ls-particle,
-  .ls-exit-card, .ls-exit-bg {
-    animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-    max-width: 260px !important;
+/* ─── Precision Tech & Botanical Keyframes ─── */
+@keyframes tech-scan {
+  0% {
+    top: 0%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.85;
+  }
+  85% {
+    opacity: 0.85;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
   }
 }
+
+@keyframes tech-reticle-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes tech-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+.animate-tech-scan {
+  animation: tech-scan 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-reticle-spin {
+  animation: tech-reticle-spin 20s linear infinite;
+}
+
+/* ─── Keyframe Animasi Makan Wortel Kelinci ─── */
+@keyframes carrot-flight {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-15px, -70px) scale(1.3) rotate(-180deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-5px, -150px) scale(0.6) rotate(-360deg);
+  }
+}
+
+@keyframes rabbit-chew {
+  0%, 100% { transform: scale(1.1) rotate(0deg); }
+  25% { transform: scale(1.16) rotate(-4deg); }
+  50% { transform: scale(1.12) rotate(4deg); }
+  75% { transform: scale(1.16) rotate(-3deg); }
+}
+
+@keyframes fountain-burst {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: translate(var(--f-dx, 0px), var(--f-dy, -50px)) scale(1.3);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--f-dx, 0px) * 1.3), calc(var(--f-dy, -50px) - 30px)) scale(0.8);
+  }
+}
+
+@keyframes bubble-pop-spring {
+  0% { transform: scale(0.94); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+.animate-carrot-fly {
+  animation: carrot-flight 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.animate-rabbit-chew {
+  animation: rabbit-chew 0.7s ease-in-out infinite;
+}
+
+.animate-fountain-particle {
+  animation: fountain-burst 1.4s ease-out forwards;
+}
+
+.animate-bubble-pop {
+  animation: bubble-pop-spring 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* ─── Efek 2: Staggered Spring Transition saat Ganti Filter Tab ─── */
+@keyframes stagger-card-spring {
+  0% {
+    opacity: 0;
+    transform: translateY(22px) scale(0.95);
+  }
+  65% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-stagger-spring {
+  animation: stagger-card-spring 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ─── Efek 3: Magma Shimmer Wave & Flame Pulse Glow pada Bar Scoville ─── */
+@keyframes magma-shimmer {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  50%, 100% {
+    transform: translateX(260%) skewX(-18deg);
+  }
+}
+
+.animate-magma-shimmer {
+  animation: magma-shimmer 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes flame-flicker-pulse {
+  0%, 100% {
+    box-shadow: 0 0 6px rgba(244, 63, 94, 0.35), 0 0 10px rgba(249, 115, 22, 0.2);
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: 0 0 14px rgba(239, 68, 68, 0.75), 0 0 20px rgba(249, 115, 22, 0.45), inset 0 0 6px rgba(255, 255, 255, 0.7);
+    filter: brightness(1.2);
+  }
+}
+
+.animate-flame-flicker {
+  animation: flame-flicker-pulse 1.8s ease-in-out infinite;
+}
+
+/* ─── Efek Floating Levitation & Laser Scan pada Mockup Preview CTA ─── */
+@keyframes float-levitate {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-9px) rotate(1.2deg);
+  }
+}
+
+.animate-float-levitate {
+  animation: float-levitate 4.5s ease-in-out infinite;
+}
+
+@keyframes laser-scan {
+  0%, 100% {
+    top: 8%;
+    opacity: 0.8;
+  }
+  50% {
+    top: 85%;
+    opacity: 1;
+  }
+}
+
+.animate-laser-scan {
+  animation: laser-scan 2.6s ease-in-out infinite;
+}
+
+
+
+

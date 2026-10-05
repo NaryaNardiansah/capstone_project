@@ -73,5 +73,7 @@ htmlcov/
 # Jupyter
 .ipynb_checkpoints/
 
-# Dataset
+# Dataset & Uploads
 dataset/
+uploads/
+conversations/

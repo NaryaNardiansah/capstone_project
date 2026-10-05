@@ -2,21 +2,60 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-/* ─── Timing constants ─────────────────────────────────────── */
-const TOTAL_MS       = 4800;   // progress 0→100%
-const CELEBRATE_MS   = 400;    // stay at 100% before exit
-const EXIT_ANIM_MS   = 700;    // exit animation duration
+/* ─── Story Konfigurasi Waktu ──────────────────────────────── */
+const MS_PER_LINE = 4500;   // Durasi per baris lirik (4.5 detik)
+const CELEBRATE_MS = 600;   // Durasi selebrasi hati melayang saat 100%
+const EXIT_ANIM_MS = 650;   // Durasi fade-out keluar
 
-/* ─── Loading text messages ────────────────────────────────── */
-const LOADING_MSGS = [
-  'Memverifikasi kredensial...',
-  'Menghubungkan ke model AI...',
-  'Memuat dashboard...',
-  'Menyiapkan pengalaman terbaik...',
-  'Hampir selesai... 🐰',
+/* ─── Kumpulan Kata Sambutan Pengguna Baru ──────────────────── */
+const NEW_USER_STORIES = [
+  [
+    "Selamat datang di keluarga besar Sistem Klasifikasi Cabai, {user}! 🎉✨",
+    "Senang sekali menyambut langkah pertamamu menjelajahi teknologi AI kami.",
+    "Sistem ini dirancang khusus dengan MobileNetV2 untuk mengenali 7 varietas cabai secara cerdas.",
+    "Kelinci-kelinci kecil ini sudah bersiap memandu dan menemanimu di setiap sudut aplikasi.",
+    "Foto cabai pertamamu hari ini akan menjadi awal dari perjalanan riset yang seru.",
+    "Yuk bersiap, mari kita masuki ruang kerja klasifikasi digitalmu sekarang! 🚀🌶️"
+  ],
+  [
+    "Hai {user}! Hari ini adalah momen istimewa karena kamu resmi bergabung bersama kami... 🌟",
+    "Terima kasih telah mempercayakan klasifikasi citra cabai kepada teknologi cerdas ini.",
+    "Dari cabai rawit merah membara hingga paprika manis, semua siap dianalisis dalam sekejap mata.",
+    "Setiap fitur di sini dibuat dengan penuh dedikasi agar pengalaman eksplorasimu terasa nyaman.",
+    "Semoga hari pertamamu menyenangkan dan penuh wawasan baru yang berharga ya, manis! 🌸🐰",
+    "Pintu dashboard kini terbuka lebar khusus menyambut kehadiranmu... ✨"
+  ]
 ];
 
-/* ─── Petal definitions (reuse pattern from page.jsx) ─────── */
+/* ─── Kumpulan Kata Sambutan Pengguna Lama (Kembali Lagi) ────── */
+const RETURNING_USER_STORIES = [
+  [
+    "Hai {user}, akhirnya yang ditunggu-tunggu pulang dan kembali juga... ✨",
+    "Layar kaca yang tadinya sepi, mendadak terasa begitu hangat saat kehadiranmu menyapa.",
+    "Jutaan neuron di model AI ini berdetak riang menyambut kedatanganmu lagi hari ini.",
+    "Pedasnya cabai rawit tak sebanding dengan manisnya senyummu yang selalu kurindukan.",
+    "Kelinci-kelinci ini sudah melompat girang menyambut langkahmu kembali, sayang... 🌸🐰",
+    "Mari kita lanjutkan petualangan klasifikasi terbaik kita hari ini! 💖🌶️"
+  ],
+  [
+    "Senang sekali melihat senyummu lagi di sini, {user}... ❤️",
+    "Ruangan ini selalu terasa ada yang kurang setiap kali kamu melangkah pergi.",
+    "Namun detik ini, seluruh detak sistem terasa hidup kembali karena kamu telah tiba.",
+    "Data dan riwayat klasifikasimu tersimpan rapi, siap melanjutkan perjalanan bersamamu.",
+    "Terima kasih sudah selalu setia kembali dan mempercayai karya ini.",
+    "Pintu ini tak pernah sekalipun terkunci... selamat datang kembali di rumah digital kita! 🏡✨"
+  ],
+  [
+    "Kembali lagi ya, {user}? Pintu ini memang tak pernah sekalipun tertutup untukmu... 🕯️",
+    "Di luar sana harimu mungkin melelahkan, tapi di sini kamu selalu istimewa.",
+    "Aroma cabai dan algoritma kami siap menyemangati setiap aktivitasmu hari ini.",
+    "Mari ciptakan hari yang produktif dan menyenangkan bersama-sama.",
+    "Kelinci manis ini selalu setia menunggumu di sini setiap hari... 🌷🐰",
+    "Yuk, kita mulai petualangan klasifikasi seru hari ini! 🚀🔥"
+  ]
+];
+
+/* ─── Kelopak Bunga Melayang ───────────────────────────────── */
 const PETALS = Array.from({ length: 10 }, (_, i) => ({
   id: i,
   left: `${(i * 19 + 3) % 96}%`,
@@ -26,19 +65,18 @@ const PETALS = Array.from({ length: 10 }, (_, i) => ({
   opacity: 0.4 + (i % 3) * 0.15,
 }));
 
-/* ─── Particle definitions ────────────────────────────────── */
+/* ─── Partikel Emotikon Lucu Melayang ───────────────────────── */
 const PARTICLES = [
-  { id: 0, left: '12%', top: '18%', dx: '12px', dy: '-14px', dur: '7s', delay: '0s',   emoji: '💗', size: 14 },
+  { id: 0, left: '12%', top: '18%', dx: '12px', dy: '-14px', dur: '7s', delay: '0s', emoji: '💗', size: 14 },
   { id: 1, left: '82%', top: '14%', dx: '-8px', dy: '-12px', dur: '9s', delay: '1.2s', emoji: '🌸', size: 13 },
-  { id: 2, left: '6%',  top: '68%', dx: '16px', dy: '-8px',  dur: '8s', delay: '0.6s', emoji: '✨', size: 12 },
-  { id: 3, left: '90%', top: '72%', dx: '-12px',dy: '-10px', dur: '6s', delay: '2s',   emoji: '💕', size: 13 },
-  { id: 4, left: '46%', top: '8%',  dx: '8px',  dy: '-16px', dur: '10s',delay: '1.8s', emoji: '🌷', size: 11 },
-  { id: 5, left: '70%', top: '88%', dx: '-10px',dy: '-12px', dur: '7s', delay: '0.3s', emoji: '⭐', size: 12 },
+  { id: 2, left: '6%', top: '68%', dx: '16px', dy: '-8px', dur: '8s', delay: '0.6s', emoji: '✨', size: 12 },
+  { id: 3, left: '90%', top: '72%', dx: '-12px', dy: '-10px', dur: '6s', delay: '2s', emoji: '💕', size: 13 },
+  { id: 4, left: '46%', top: '8%', dx: '8px', dy: '-16px', dur: '10s', delay: '1.8s', emoji: '🌷', size: 11 },
+  { id: 5, left: '70%', top: '88%', dx: '-10px', dy: '-12px', dur: '7s', delay: '0.3s', emoji: '⭐', size: 12 },
 ];
 
-/* ─── Rabbit SVG (inline, same art as MascotRabbit) ───────── */
+/* ─── Karakter Kelinci Imut SVG ────────────────────────────── */
 function RabbitSVG({ size = 48, color = '#f43f5e', earColor = '#fb7185', className = '' }) {
-  const inner = earColor;
   return (
     <svg
       width={size}
@@ -48,47 +86,39 @@ function RabbitSVG({ size = 48, color = '#f43f5e', earColor = '#fb7185', classNa
       aria-hidden="true"
       className={className}
     >
-      {/* ears */}
       <ellipse cx="40" cy="30" rx="10" ry="24" fill={earColor} />
       <ellipse cx="80" cy="30" rx="10" ry="24" fill={earColor} />
-      <ellipse cx="40" cy="30" rx="5"  ry="15" fill="#fff1f2" />
-      <ellipse cx="80" cy="30" rx="5"  ry="15" fill="#fff1f2" />
-      {/* body */}
+      <ellipse cx="40" cy="30" rx="5" ry="15" fill="#fff1f2" />
+      <ellipse cx="80" cy="30" rx="5" ry="15" fill="#fff1f2" />
       <ellipse cx="60" cy="80" rx="32" ry="28" fill={color} />
-      {/* head */}
       <circle cx="60" cy="54" r="26" fill={earColor} />
-      {/* eyes */}
       <circle cx="50" cy="49" r="4.5" fill="#4c0519" />
       <circle cx="70" cy="49" r="4.5" fill="#4c0519" />
       <circle cx="52" cy="47" r="1.8" fill="white" />
       <circle cx="72" cy="47" r="1.8" fill="white" />
-      {/* cheeks */}
       <ellipse cx="44" cy="58" rx="5" ry="3.5" fill="#fda4af" opacity="0.6" />
       <ellipse cx="76" cy="58" rx="5" ry="3.5" fill="#fda4af" opacity="0.6" />
-      {/* nose */}
       <ellipse cx="60" cy="62" rx="3.5" ry="2.5" fill="#e11d48" />
-      {/* tail */}
       <circle cx="91" cy="84" r="10" fill="#ffe4e6" />
-      {/* front legs */}
       <ellipse cx="42" cy="96" rx="9" ry="7" fill={color} transform="rotate(-20 42 96)" />
       <ellipse cx="78" cy="96" rx="9" ry="7" fill={color} transform="rotate(20 78 96)" />
     </svg>
   );
 }
 
-/* ─── Carrot SVG ───────────────────────────────────────────── */
+/* ─── Wortel Imut Berputar SVG ─────────────────────────────── */
 function CarrotSVG({ size = 32 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true">
       <path d="M16 28 C12 22 10 16 11 10 C12 6 16 4 18 8 C20 12 20 18 16 28Z" fill="#f97316" />
       <path d="M13 10 C10 6 8 4 10 2 C12 0 14 4 13 10Z" fill="#22c55e" />
-      <path d="M16 8  C16 4 18 2 20 3 C22 5 19 8 16 8Z" fill="#22c55e" />
+      <path d="M16 8 C16 4 18 2 20 3 C22 5 19 8 16 8Z" fill="#22c55e" />
       <path d="M18 10 C20 6 23 5 24 7 C25 9 22 11 18 10Z" fill="#22c55e" />
     </svg>
   );
 }
 
-/* ─── Heart particle ───────────────────────────────────────── */
+/* ─── Partikel Hati Selebrasi ──────────────────────────────── */
 function HeartSVG({ size = 18, color = '#fb7185' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true">
@@ -97,7 +127,7 @@ function HeartSVG({ size = 18, color = '#fb7185' }) {
   );
 }
 
-/* ─── Chili Logo (inline from page.jsx) ────────────────────── */
+/* ─── Logo Cabai Melayang ──────────────────────────────────── */
 function ChiliLogoInline({ size = 48 }) {
   return (
     <div
@@ -113,71 +143,16 @@ function ChiliLogoInline({ size = 48 }) {
   );
 }
 
-/* ─── Rabbit definitions ────────────────────────────────────── */
+/* ─── Posisi 5 Kelinci di Sudut Kartu ──────────────────────── */
 const RABBITS = [
-  {
-    id: 0,
-    // top-left corner, slightly outside card
-    pos: { top: '-52px', left: '-44px' },
-    size: 52,
-    color: '#f43f5e',
-    earColor: '#fb7185',
-    hopClass: 'ls-rabbit-hop',
-    dur: '1.0s',
-    delay: '0s',
-    flipX: false,
-  },
-  {
-    id: 1,
-    // top-right corner
-    pos: { top: '-48px', right: '-40px' },
-    size: 44,
-    color: '#fb7185',
-    earColor: '#fda4af',
-    hopClass: 'ls-rabbit-hop-alt',
-    dur: '1.3s',
-    delay: '0.25s',
-    flipX: true,
-  },
-  {
-    id: 2,
-    // bottom-left
-    pos: { bottom: '-56px', left: '-36px' },
-    size: 48,
-    color: '#e11d48',
-    earColor: '#fb7185',
-    hopClass: 'ls-rabbit-hop',
-    dur: '0.9s',
-    delay: '0.5s',
-    flipX: false,
-  },
-  {
-    id: 3,
-    // bottom-right
-    pos: { bottom: '-52px', right: '-42px' },
-    size: 54,
-    color: '#f43f5e',
-    earColor: '#fecdd3',
-    hopClass: 'ls-rabbit-hop-alt',
-    dur: '1.2s',
-    delay: '0.15s',
-    flipX: true,
-  },
-  {
-    id: 4,
-    // top-center
-    pos: { top: '-60px', left: '50%', transform: 'translateX(-50%)' },
-    size: 40,
-    color: '#fb7185',
-    earColor: '#fda4af',
-    hopClass: 'ls-rabbit-hop',
-    dur: '1.5s',
-    delay: '0.7s',
-    flipX: false,
-  },
+  { id: 0, pos: { top: '-52px', left: '-44px' }, size: 52, color: '#f43f5e', earColor: '#fb7185', hopClass: 'ls-rabbit-hop', dur: '1.0s', delay: '0s', flipX: false },
+  { id: 1, pos: { top: '-48px', right: '-40px' }, size: 44, color: '#fb7185', earColor: '#fda4af', hopClass: 'ls-rabbit-hop-alt', dur: '1.3s', delay: '0.25s', flipX: true },
+  { id: 2, pos: { bottom: '-56px', left: '-36px' }, size: 48, color: '#e11d48', earColor: '#fb7185', hopClass: 'ls-rabbit-hop', dur: '0.9s', delay: '0.5s', flipX: false },
+  { id: 3, pos: { bottom: '-52px', right: '-42px' }, size: 54, color: '#f43f5e', earColor: '#fecdd3', hopClass: 'ls-rabbit-hop-alt', dur: '1.2s', delay: '0.15s', flipX: true },
+  { id: 4, pos: { top: '-60px', left: '50%', transform: 'translateX(-50%)' }, size: 40, color: '#fb7185', earColor: '#fda4af', hopClass: 'ls-rabbit-hop', dur: '1.5s', delay: '0.7s', flipX: false },
 ];
 
-/* ─── CELEBRATE HEARTS (shown when progress=100) ─────────── */
+/* ─── Hati Selebrasi 100% ──────────────────────────────────── */
 const CELEBRATE_HEARTS = [
   { id: 0, left: '20%', bottom: '60%', delay: '0s' },
   { id: 1, left: '45%', bottom: '55%', delay: '0.15s' },
@@ -186,101 +161,304 @@ const CELEBRATE_HEARTS = [
   { id: 4, left: '60%', bottom: '63%', delay: '0.22s' },
 ];
 
+/* ─── Alunan Kotak Musik Ceria & Romantis (Web Audio API) ───── */
+function playWelcomingMelody() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return null;
+    const ctx = new AudioCtx();
+    let isStopped = false;
+    let loopTimeout = null;
+
+    // Tangga nada ceria menyambut (Cmaj7 -> Am7 -> Fmaj7 -> Gsus4 -> G)
+    const notes = [
+      { freq: 523.25, time: 0.0, dur: 0.8, vol: 0.18 }, // C5
+      { freq: 659.25, time: 0.25, dur: 0.8, vol: 0.20 }, // E5
+      { freq: 783.99, time: 0.5, dur: 0.9, vol: 0.22 }, // G5
+      { freq: 987.77, time: 0.75, dur: 1.1, vol: 0.24 }, // B5
+      
+      { freq: 440.00, time: 1.3, dur: 0.8, vol: 0.18 }, // A4
+      { freq: 523.25, time: 1.55, dur: 0.8, vol: 0.20 }, // C5
+      { freq: 659.25, time: 1.8, dur: 0.9, vol: 0.22 }, // E5
+      { freq: 783.99, time: 2.05, dur: 1.1, vol: 0.24 }, // G5
+
+      { freq: 349.23, time: 2.6, dur: 0.8, vol: 0.18 }, // F4
+      { freq: 440.00, time: 2.85, dur: 0.8, vol: 0.20 }, // A4
+      { freq: 523.25, time: 3.1, dur: 0.9, vol: 0.22 }, // C5
+      { freq: 659.25, time: 3.35, dur: 1.1, vol: 0.24 }, // E5
+
+      { freq: 392.00, time: 3.9, dur: 0.8, vol: 0.18 }, // G4
+      { freq: 493.88, time: 4.15, dur: 0.8, vol: 0.20 }, // B4
+      { freq: 587.33, time: 4.4, dur: 0.9, vol: 0.22 }, // D5
+      { freq: 783.99, time: 4.65, dur: 1.2, vol: 0.26 }, // G5
+    ];
+
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0.35, ctx.currentTime);
+    masterGain.connect(ctx.destination);
+
+    const playCycle = () => {
+      if (isStopped) return;
+      const startTime = ctx.currentTime;
+
+      notes.forEach(({ freq, time, dur, vol }) => {
+        const noteStart = startTime + time;
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const noteGain1 = ctx.createGain();
+        const noteGain2 = ctx.createGain();
+
+        osc1.type = 'sine';
+        osc2.type = 'triangle';
+        osc1.frequency.setValueAtTime(freq, noteStart);
+        osc2.frequency.setValueAtTime(freq * 2, noteStart);
+
+        // Sound envelope khas kotak musik
+        noteGain1.gain.setValueAtTime(0, noteStart);
+        noteGain1.gain.linearRampToValueAtTime(vol, noteStart + 0.02);
+        noteGain1.gain.exponentialRampToValueAtTime(0.0001, noteStart + dur);
+
+        noteGain2.gain.setValueAtTime(0, noteStart);
+        noteGain2.gain.linearRampToValueAtTime(vol * 0.35, noteStart + 0.02);
+        noteGain2.gain.exponentialRampToValueAtTime(0.0001, noteStart + dur * 0.7);
+
+        osc1.connect(noteGain1);
+        osc2.connect(noteGain2);
+        noteGain1.connect(masterGain);
+        noteGain2.connect(masterGain);
+
+        osc1.start(noteStart);
+        osc2.start(noteStart);
+        osc1.stop(noteStart + dur);
+        osc2.stop(noteStart + dur);
+      });
+
+      loopTimeout = setTimeout(playCycle, 5600);
+    };
+
+    playCycle();
+
+    return {
+      stop: () => {
+        isStopped = true;
+        if (loopTimeout) clearTimeout(loopTimeout);
+        try {
+          masterGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+          setTimeout(() => ctx.close(), 300);
+        } catch {}
+      },
+      mute: (muted) => {
+        try {
+          masterGain.gain.setValueAtTime(muted ? 0 : 0.35, ctx.currentTime);
+        } catch {}
+      },
+    };
+  } catch (err) {
+    console.warn('[WelcomeScreen] Web Audio error:', err);
+    return null;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════
-   MAIN COMPONENT
+   KOMPONEN UTAMA LOADING SCREEN SAMBUTAN
    ═══════════════════════════════════════════════════════════════ */
 export default function LoadingScreen({ onComplete }) {
-  const [progress, setProgress]       = useState(0);
-  const [msgIndex, setMsgIndex]       = useState(0);
-  const [isExiting, setIsExiting]     = useState(false);
-  const [celebrate, setCelebrate]     = useState(false);
-  const [showHearts, setShowHearts]   = useState(false);
-  const [imgError, setImgError]       = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [username, setUsername] = useState('Pengguna');
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [storyLines, setStoryLines] = useState([]);
+  const [activeLineIdx, setActiveLineIdx] = useState(0);
 
-  const progressRef = useRef(null);
-  const msgTimerRef = useRef(null);
+  const [isExiting, setIsExiting] = useState(false);
+  const [celebrate, setCelebrate] = useState(false);
+  const [showHearts, setShowHearts] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
 
-  /* ── Detect prefers-reduced-motion ── */
+  const audioElRef = useRef(null);
+  const synthRef = useRef(null);
+
+  // Inisialisasi User & Cerita Kata Sambutan
   useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReducedMotion(mq.matches);
-    const handler = () => setReducedMotion(mq.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
+    const rawUser = localStorage.getItem('username') || 'Pengguna';
+    const cleanUser = rawUser.trim();
+    setUsername(cleanUser);
+
+    // Cek status sesi apakah pengguna baru atau pengguna lama
+    const isNew = sessionStorage.getItem('is_new_user_session') === 'true';
+    setIsNewUser(isNew);
+
+    const storyPool = isNew ? NEW_USER_STORIES : RETURNING_USER_STORIES;
+    const chosenStory = storyPool[Math.floor(Math.random() * storyPool.length)];
+    
+    // Gantikan token {user} dengan username yang sebenarnya
+    const parsedLines = chosenStory.map((line) => line.replace(/{user}/g, cleanUser));
+    setStoryLines(parsedLines);
   }, []);
 
-  /* ── Progress counter ── */
+  // Alunan Musik Sambutan
   useEffect(() => {
+    let isCancelled = false;
+
+    try {
+      const audio = new Audio('/audio/welcome.mp3');
+      audio.preload = 'auto';
+      audio.volume = 0.55;
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            if (!isCancelled) {
+              audioElRef.current = audio;
+            } else {
+              audio.pause();
+            }
+          })
+          .catch(() => {
+            // Jika file mp3 tidak ada / autoplay terblokir, putar alunan kotak musik
+            if (!isCancelled) {
+              synthRef.current = playWelcomingMelody();
+            }
+          });
+      }
+    } catch {
+      synthRef.current = playWelcomingMelody();
+    }
+
+    return () => {
+      isCancelled = true;
+      if (audioElRef.current) {
+        audioElRef.current.pause();
+        audioElRef.current = null;
+      }
+      if (synthRef.current) {
+        synthRef.current.stop();
+        synthRef.current = null;
+      }
+    };
+  }, []);
+
+  const toggleMute = () => {
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+    if (audioElRef.current) audioElRef.current.muted = nextMuted;
+    if (synthRef.current) synthRef.current.mute(nextMuted);
+  };
+
+  // Timer & Pergantian Baris Kata Sambutan
+  useEffect(() => {
+    if (storyLines.length === 0) return;
+
+    const totalDuration = storyLines.length * MS_PER_LINE;
     const startTime = performance.now();
-    let raf;
+    let rafId;
 
     const tick = (now) => {
       const elapsed = now - startTime;
-      const pct = Math.min(100, Math.round((elapsed / TOTAL_MS) * 100));
+      const pct = Math.min(100, Math.round((elapsed / totalDuration) * 100));
       setProgress(pct);
 
+      const currentIdx = Math.min(
+        storyLines.length - 1,
+        Math.floor(elapsed / MS_PER_LINE)
+      );
+      setActiveLineIdx(currentIdx);
+
       if (pct < 100) {
-        raf = requestAnimationFrame(tick);
+        rafId = requestAnimationFrame(tick);
       } else {
-        // 100% reached → celebrate
+        // Selesai 100% → Selebrasi sejenak lalu masuk ke dasbor
         setCelebrate(true);
         setShowHearts(true);
         setTimeout(() => {
           setIsExiting(true);
-          setTimeout(() => onComplete?.(), EXIT_ANIM_MS + 100);
+          if (synthRef.current) synthRef.current.stop();
+          if (audioElRef.current) audioElRef.current.pause();
+          setTimeout(() => {
+            onComplete?.();
+          }, EXIT_ANIM_MS);
         }, CELEBRATE_MS);
       }
     };
 
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [onComplete]);
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [storyLines, onComplete]);
 
-  /* ── Rotate loading messages ── */
-  useEffect(() => {
-    msgTimerRef.current = setInterval(() => {
-      setMsgIndex((i) => (i + 1) % LOADING_MSGS.length);
-    }, TOTAL_MS / LOADING_MSGS.length);
-    return () => clearInterval(msgTimerRef.current);
-  }, []);
+  // Tombol Langsung Masuk (Lewati / Skip)
+  const handleImmediateEnter = () => {
+    setCelebrate(true);
+    setShowHearts(true);
+    setIsExiting(true);
+    if (synthRef.current) synthRef.current.stop();
+    if (audioElRef.current) audioElRef.current.pause();
+    setTimeout(() => {
+      onComplete?.();
+    }, 400);
+  };
 
-  /* ── Aria live announcement ── */
-  const ariaMsg = `Memuat dashboard, harap tunggu… ${progress}%`;
+  const ariaMsg = `Menyambut ${username}, ${progress}%: ${storyLines[activeLineIdx] || ''}`;
 
   return (
     <div
       role="status"
       aria-live="polite"
       aria-label={ariaMsg}
-      className={`ls-fade-in${isExiting ? ' ls-exit-bg' : ''}`}
+      className={`fixed inset-0 w-screen h-screen z-[99999] flex items-center justify-center overflow-hidden ls-fade-in${
+        isExiting ? ' ls-exit-bg' : ''
+      }`}
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 9999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
+        width: '100vw',
+        height: '100vh',
+        zIndex: 99999,
         background: 'linear-gradient(135deg, #ffe4e6 0%, #fff1f2 35%, #fdf2f8 65%, #fce7f3 100%)',
       }}
     >
-      {/* ── Background blur orbs ── */}
+      {/* ── Background Ambient Glow Orbs ── */}
       <div
         className="ls-orb-1 pointer-events-none absolute"
-        style={{ width: 340, height: 340, top: '-80px', left: '-80px', borderRadius: '50%', background: 'radial-gradient(circle, #fecdd3 0%, transparent 70%)', opacity: 0.55, filter: 'blur(60px)' }}
+        style={{
+          width: 360,
+          height: 360,
+          top: '-80px',
+          left: '-80px',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, #fecdd3 0%, transparent 70%)',
+          opacity: 0.55,
+          filter: 'blur(60px)',
+        }}
       />
       <div
         className="ls-orb-2 pointer-events-none absolute"
-        style={{ width: 280, height: 280, bottom: '-60px', right: '-60px', borderRadius: '50%', background: 'radial-gradient(circle, #fbcfe8 0%, transparent 70%)', opacity: 0.5, filter: 'blur(50px)' }}
+        style={{
+          width: 320,
+          height: 320,
+          bottom: '-60px',
+          right: '-60px',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, #fbcfe8 0%, transparent 70%)',
+          opacity: 0.5,
+          filter: 'blur(50px)',
+        }}
       />
       <div
         className="ls-orb-3 pointer-events-none absolute"
-        style={{ width: 200, height: 200, top: '40%', right: '15%', borderRadius: '50%', background: 'radial-gradient(circle, #fda4af 0%, transparent 70%)', opacity: 0.35, filter: 'blur(40px)' }}
+        style={{
+          width: 220,
+          height: 220,
+          top: '38%',
+          right: '12%',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, #fda4af 0%, transparent 70%)',
+          opacity: 0.35,
+          filter: 'blur(40px)',
+        }}
       />
 
-      {/* ── Falling petals ── */}
-      {!reducedMotion && PETALS.map((p) => (
+      {/* ── Kelopak Bunga Melayang Halus ── */}
+      {PETALS.map((p) => (
         <span
           key={p.id}
           className="petal pointer-events-none absolute rounded-full"
@@ -297,8 +475,8 @@ export default function LoadingScreen({ onComplete }) {
         />
       ))}
 
-      {/* ── Floating ambient particles ── */}
-      {!reducedMotion && PARTICLES.map((p) => (
+      {/* ── Partikel Emotikon Lucu ── */}
+      {PARTICLES.map((p) => (
         <span
           key={p.id}
           className="ls-particle pointer-events-none absolute select-none"
@@ -317,35 +495,33 @@ export default function LoadingScreen({ onComplete }) {
         </span>
       ))}
 
-      {/* ── Floating carrots (corners) ── */}
-      {!reducedMotion && (
-        <>
-          <div className="ls-carrot-spin pointer-events-none absolute" style={{ top: '12%', left: '8%', '--delay': '0s', opacity: 0.7 }} aria-hidden="true"><CarrotSVG size={28} /></div>
-          <div className="ls-carrot-spin pointer-events-none absolute" style={{ bottom: '15%', right: '9%', '--delay': '0.8s', opacity: 0.65 }} aria-hidden="true"><CarrotSVG size={24} /></div>
-          <div className="ls-carrot-spin pointer-events-none absolute" style={{ top: '65%', left: '5%', '--delay': '1.4s', opacity: 0.5 }} aria-hidden="true"><CarrotSVG size={20} /></div>
-        </>
-      )}
+      {/* ── Wortel Berputar di Sudut Layar ── */}
+      <div className="ls-carrot-spin pointer-events-none absolute" style={{ top: '10%', left: '8%', '--delay': '0s', opacity: 0.7 }} aria-hidden="true">
+        <CarrotSVG size={28} />
+      </div>
+      <div className="ls-carrot-spin pointer-events-none absolute" style={{ bottom: '12%', right: '9%', '--delay': '0.8s', opacity: 0.65 }} aria-hidden="true">
+        <CarrotSVG size={24} />
+      </div>
+      <div className="ls-carrot-spin pointer-events-none absolute" style={{ top: '68%', left: '5%', '--delay': '1.4s', opacity: 0.5 }} aria-hidden="true">
+        <CarrotSVG size={20} />
+      </div>
 
       {/* ═══════════════════════════════════════════
-          GLASSMORPHISM CARD
+          KARTU GLASSMORPHISM SAMBUTAN UTAMA
           ═══════════════════════════════════════════ */}
       <div
-        className={`ls-card-in${isExiting ? ' ls-exit-card' : ''}`}
+        className={`relative w-full max-w-[460px] mx-4 sm:mx-auto ls-card-in${isExiting ? ' ls-exit-card' : ''}`}
         style={{
-          position: 'relative',
-          width: '100%',
-          maxWidth: 440,
-          margin: '0 16px',
           borderRadius: 28,
-          padding: '36px 32px 32px',
-          background: 'rgba(255,255,255,0.82)',
+          padding: '30px 28px 24px',
+          background: 'rgba(255, 255, 255, 0.88)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          border: '2px solid rgba(254,205,211,0.65)',
-          boxShadow: '0 24px 64px rgba(244,63,94,0.18), 0 8px 24px rgba(244,63,94,0.08)',
+          border: '2px solid rgba(254, 205, 211, 0.75)',
+          boxShadow: '0 24px 64px rgba(244, 63, 94, 0.20), 0 8px 24px rgba(244, 63, 94, 0.08)',
         }}
       >
-        {/* ── Rabbits around the card ── */}
+        {/* ── 5 Kelinci Melompat di Sudut Kartu ── */}
         {RABBITS.map((r) => (
           <div
             key={r.id}
@@ -364,251 +540,95 @@ export default function LoadingScreen({ onComplete }) {
           </div>
         ))}
 
-        {/* ── Celebrate hearts ── */}
-        {showHearts && CELEBRATE_HEARTS.map((h) => (
-          <div
-            key={h.id}
-            className="ls-heart-float pointer-events-none absolute"
-            style={{ left: h.left, bottom: h.bottom, '--delay': h.delay, zIndex: 3 }}
-            aria-hidden="true"
-          >
-            <HeartSVG size={20} color="#fb7185" />
-          </div>
-        ))}
+        {/* ── Partikel Hati Selebrasi 100% ── */}
+        {showHearts &&
+          CELEBRATE_HEARTS.map((h) => (
+            <div
+              key={h.id}
+              className="ls-heart-float pointer-events-none absolute"
+              style={{ left: h.left, bottom: h.bottom, '--delay': h.delay, zIndex: 3 }}
+              aria-hidden="true"
+            >
+              <HeartSVG size={22} color="#fb7185" />
+            </div>
+          ))}
 
-        {/* ── ChiliDetect Logo ── */}
-        <div className="ls-logo-in flex flex-col items-center gap-1 mb-6">
-          <ChiliLogoInline size={52} />
-          <div style={{ textAlign: 'center', marginTop: 8 }}>
-            <p className="font-display font-bold tracking-tight" style={{ fontSize: 20, color: '#881337' }}>
+        {/* ── Bar Atas: Status Pengguna & Tombol Suara ── */}
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase border shadow-xs"
+            style={{
+              backgroundColor: isNewUser ? '#ecfdf5' : '#fff1f2',
+              borderColor: isNewUser ? '#a7f3d0' : '#fecdd3',
+              color: isNewUser ? '#047857' : '#e11d48',
+            }}
+          >
+            <span>{isNewUser ? '✨ PENGGUNA BARU' : '💖 SELAMAT DATANG KEMBALI'}</span>
+          </div>
+
+          {/* Tombol Mute / Unmute Musik */}
+          <button
+            type="button"
+            onClick={toggleMute}
+            className="w-8 h-8 rounded-full bg-rose-50 border border-rose-200/80 hover:bg-rose-100/80 flex items-center justify-center text-xs text-rose-700 transition-transform active:scale-90"
+            title={isMuted ? 'Nyalakan Musik' : 'Matikan Musik'}
+            aria-label={isMuted ? 'Nyalakan Musik' : 'Matikan Musik'}
+          >
+            <span>{isMuted ? '🔇' : '🔊'}</span>
+          </button>
+        </div>
+
+        {/* ── Logo ChiliDetect ── */}
+        <div className="ls-logo-in flex flex-col items-center gap-1 mb-4">
+          <ChiliLogoInline size={46} />
+          <div style={{ textAlign: 'center', marginTop: 4 }}>
+            <p className="font-display font-bold tracking-tight text-lg" style={{ color: '#881337' }}>
               ChiliDetect
             </p>
-            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#fda4af', marginTop: 1 }}>
-              MobileNetV2 AI
+            <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#fda4af', marginTop: 1 }}>
+              MobileNetV2 AI System
             </p>
           </div>
         </div>
 
-        {/* ── Developer photo ── */}
-        <div className="flex flex-col items-center mb-5">
-          {/* Outer animated ring */}
-          <div
-            className="ls-ring-expand"
-            style={{
-              width: 148,
-              height: 148,
-              borderRadius: '50%',
-              padding: 4,
-              background: 'linear-gradient(135deg, #fb7185, #f43f5e, #fda4af)',
-              boxShadow: '0 8px 32px rgba(244,63,94,0.3)',
-              willChange: 'transform',
-            }}
-          >
-            {/* Inner white border */}
-            <div
-              style={{
-                width: '100%',
-                height: '100%',
-                borderRadius: '50%',
-                padding: 3,
-                background: 'white',
-              }}
-            >
-              {/* Photo or fallback */}
-              {!imgError ? (
-                <img
-                  src="/images/foto-my.jpg"
-                  alt="Foto Difa Fadhillah, pengembang ChiliDetect"
-                  width={200}
-                  height={200}
-                  className="ls-photo-reveal ls-photo-pulse"
-                  onError={() => setImgError(true)}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    objectPosition: 'center top',
-                    display: 'block',
-                  }}
-                />
-              ) : (
-                // Fallback: gradient circle with initial
-                <div
-                  className="ls-photo-reveal"
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #fb7185, #f43f5e)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    fontWeight: 700,
-                    fontSize: 42,
-                  }}
-                >
-                  D
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Developer name block ── */}
-        <div className="text-center mb-4">
-          {/* Primary name — split chars with GSAP-like stagger via CSS delay */}
-          <div
-            className="ls-slide-up font-display font-bold"
-            style={{
-              '--delay': '1.1s',
-              fontSize: 34,
-              color: '#881337',
-              letterSpacing: '-0.02em',
-              lineHeight: 1.1,
-            }}
-          >
-            {'Difa Fadhillah'.split('').map((char, i) => (
-              <span
-                key={i}
-                className="inline-block"
-                style={{
-                  animation: reducedMotion
-                    ? 'none'
-                    : `ls-slide-up 0.4s cubic-bezier(0.34,1.2,0.64,1) ${1.1 + i * 0.045}s both`,
-                  opacity: reducedMotion ? 1 : undefined,
-                  willChange: 'transform',
-                }}
-              >
-                {char === ' ' ? '\u00A0' : char}
-              </span>
-            ))}
-          </div>
-
-          {/* Secondary name — typewriter */}
-          <div style={{ marginTop: 6 }}>
-            <span
-              className="ls-typewriter font-medium italic"
-              style={{
-                fontSize: 16,
-                color: '#f43f5e',
-                fontFamily: "'Inter', sans-serif",
-              }}
-            >
-              Anasera Kaluna
-            </span>
-          </div>
-        </div>
-
-        {/* ── Project info ── */}
+        {/* ── KOTAK KATA SAMBUTAN / LIRIK BERPINDAH ── */}
         <div
-          className="ls-slide-up text-center mb-5"
-          style={{ '--delay': '1.7s' }}
+          className="relative min-h-[96px] p-5 rounded-2xl border border-rose-200/80 bg-gradient-to-br from-rose-50/80 via-white to-orange-50/50 flex items-center justify-center text-center shadow-xs my-6 overflow-hidden"
         >
-          {/* Badge */}
-          <div
-            className="ls-badge-pop inline-flex items-center gap-1.5 rounded-full px-3 py-1 mb-3"
-            style={{
-              '--delay': '1.85s',
-              background: '#fff1f2',
-              border: '1px solid #fecdd3',
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
-              color: '#e11d48',
-            }}
-          >
-            {/* Pulse dot */}
-            <span
-              style={{
-                width: 7, height: 7, borderRadius: '50%',
-                background: '#f43f5e',
-                display: 'inline-block',
-                animation: 'pulse 1.5s ease-in-out infinite',
-                flexShrink: 0,
-              }}
-            />
-            Deep Learning Project
-          </div>
-
-          {/* Title */}
-          <p
-            style={{
-              fontSize: 15,
-              fontWeight: 600,
-              color: '#9f1239',
-              lineHeight: 1.35,
-              margin: '0 auto 6px',
-              maxWidth: 330,
-            }}
-          >
-            Sistem Klasifikasi Cabai Rawit Indonesia
-          </p>
-
-          {/* Subtitle */}
-          <p
-            style={{
-              fontSize: 12,
-              color: '#be123c',
-              lineHeight: 1.5,
-              margin: '0 auto',
-              maxWidth: 320,
-              opacity: 0.85,
-            }}
-          >
-            Deep Learning berbasis MobileNetV2 · 4 jenis cabai rawit
-          </p>
+          {storyLines.length > 0 && (
+            <p
+              key={activeLineIdx}
+              className="text-sm sm:text-base font-semibold leading-relaxed animate-fade-in px-2"
+              style={{ color: '#881337' }}
+            >
+              {storyLines[activeLineIdx]}
+            </p>
+          )}
         </div>
 
-        {/* ── Progress section ── */}
-        <div
-          className="ls-slide-up"
-          style={{ '--delay': '2.0s' }}
-        >
-          {/* Percentage + text header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 500,
-                color: '#be123c',
-                fontFamily: "'Inter', sans-serif",
-                transition: 'opacity 0.3s',
-              }}
-            >
-              {LOADING_MSGS[msgIndex]}
+        {/* ── Progress Bar & Indikator Baris ── */}
+        <div className="space-y-2 mb-4">
+          <div className="flex items-center justify-between text-[11px] font-semibold" style={{ color: '#be123c' }}>
+            <span>
+              Langkah {activeLineIdx + 1} dari {storyLines.length || 6}
             </span>
-            <span
-              style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontWeight: 700,
-                fontSize: 13,
-                color: '#e11d48',
-                minWidth: 38,
-                textAlign: 'right',
-              }}
-            >
+            <span className="font-mono font-bold" style={{ color: '#e11d48' }}>
               {progress}%
             </span>
           </div>
 
-          {/* Bar track */}
+          {/* Bar Fill */}
           <div
             style={{
               width: '100%',
-              height: 10,
+              height: 7,
               borderRadius: 99,
               background: '#ffe4e6',
               overflow: 'hidden',
               position: 'relative',
             }}
           >
-            {/* Fill */}
             <div
-              ref={progressRef}
               style={{
                 height: '100%',
                 borderRadius: 99,
@@ -619,74 +639,53 @@ export default function LoadingScreen({ onComplete }) {
                 overflow: 'hidden',
               }}
             >
-              {/* Shimmer overlay */}
-              {!reducedMotion && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.45) 50%, transparent 100%)',
-                    animation: 'ls-progress-shimmer 1.6s linear infinite',
-                    width: '50%',
-                  }}
-                />
-              )}
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.6) 50%, transparent 100%)',
+                  animation: 'ls-progress-shimmer 1.6s linear infinite',
+                  width: '50%',
+                }}
+              />
             </div>
           </div>
 
-          {/* Step indicators */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-            {['Verifikasi', 'Memuat', 'Siap! 🎉'].map((step, i) => {
-              const threshold = [0, 40, 80][i];
-              const done = progress >= threshold + 20;
-              return (
-                <div key={step} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <div
-                    style={{
-                      width: 14,
-                      height: 14,
-                      borderRadius: '50%',
-                      background: done ? 'linear-gradient(135deg,#fb7185,#f43f5e)' : '#fecdd3',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'background 0.4s',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {done && (
-                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round">
-                        <path d="M20 6 9 17l-5-5" />
-                      </svg>
-                    )}
-                  </div>
-                  <span style={{ fontSize: 9, fontWeight: 600, color: done ? '#e11d48' : '#fda4af', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                    {step}
-                  </span>
-                </div>
-              );
-            })}
+          {/* Titik Indikator Baris */}
+          <div className="flex justify-center gap-1.5 pt-1">
+            {storyLines.map((_, i) => (
+              <span
+                key={i}
+                className="h-1.5 rounded-full transition-all duration-300"
+                style={{
+                  width: i === activeLineIdx ? 16 : 6,
+                  backgroundColor: i === activeLineIdx ? '#f43f5e' : '#fecdd3',
+                }}
+              />
+            ))}
           </div>
         </div>
 
-        {/* ── Footer credit ── */}
-        <p
-          className="ls-slide-up text-center"
-          style={{
-            '--delay': '2.2s',
-            marginTop: 16,
-            fontSize: 10,
-            fontWeight: 600,
-            letterSpacing: '0.16em',
-            textTransform: 'uppercase',
-            color: '#fda4af',
-          }}
-        >
-          Politeknik Negeri Padang · 2026
-        </p>
+        {/* ── Tombol Lewati / Langsung Masuk Dashboard ── */}
+        <div className="flex flex-col items-center gap-2 pt-1">
+          <button
+            type="button"
+            onClick={handleImmediateEnter}
+            className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-rose-500 via-rose-600 to-red-600 shadow-sm hover:shadow-md hover:from-rose-600 hover:to-red-700 active:scale-[0.99] transition-all flex items-center justify-center gap-1.5 group cursor-pointer"
+          >
+            <span>Langsung Masuk Dashboard</span>
+            <span className="transform group-hover:translate-x-1 transition-transform">→</span>
+          </button>
+
+          <p
+            className="text-[9px] font-semibold tracking-wider uppercase text-center mt-1"
+            style={{ color: '#fda4af' }}
+          >
+            Politeknik Negeri Padang · 2026
+          </p>
+        </div>
       </div>
 
-      {/* Screen reader only text */}
       <span className="sr-only">{ariaMsg}</span>
     </div>
   );

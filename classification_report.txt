@@ -1,10 +1,9 @@
                       precision    recall  f1-score   support
 
-Cabai Merah Keriting       0.98      1.00      0.99        46
-        Cabai Celeng       1.00      1.00      1.00        34
-         Cabai Putih       0.91      0.93      0.92        68
-         Cabai Setan       0.92      0.90      0.91        67
+Cabai Merah Keriting       1.00      1.00      1.00        40
+        Cabai Celeng       1.00      1.00      1.00        12
+         Cabai Putih       1.00      1.00      1.00        10
 
-            accuracy                           0.94       215
-           macro avg       0.95      0.96      0.95       215
-        weighted avg       0.94      0.94      0.94       215
+            accuracy                           1.00        62
+           macro avg       1.00      1.00      1.00        62
+        weighted avg       1.00      1.00      1.00        62

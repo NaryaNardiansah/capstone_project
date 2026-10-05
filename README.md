@@ -17,7 +17,7 @@
 <br/>
 
 > 🎓 **Proyek Tugas Akhir (Capstone Project)**
-> Program Studi Teknologi Rekayasa Perangkat Lunak
+> Program Studi Manajemen Informasi
 > Jurusan Teknologi Informasi — Politeknik Negeri Padang — 2026
 
 </div>
@@ -362,10 +362,9 @@ Aplikasi ini menggunakan tema **Rose Pastel Rabbit Wonderland** yang konsisten d
 
 | | |
 |---|---|
-| **Nama Lengkap** | Difa Fadhillah |
-| **Nama Tambahan** | Anasera Kaluna |
-| **NIM** | 2311081010 |
-| **Program Studi** | Teknologi Rekayasa Perangkat Lunak |
+| **Nama Lengkap** | Muhammad Narya Nardiansah |
+| **NIM** | 2301091015 |
+| **Program Studi** | Manajemen Informasi |
 | **Jurusan** | Teknologi Informasi |
 | **Institusi** | Politeknik Negeri Padang |
 | **Tahun** | 2026 |

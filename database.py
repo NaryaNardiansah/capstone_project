@@ -4,7 +4,7 @@ import sqlite3
 import os
 import hashlib
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Konfigurasi MySQL default
 MYSQL_HOST = "127.0.0.1"
@@ -140,6 +140,11 @@ def init_db():
                     cursor.execute("ALTER TABLE users ADD COLUMN email VARCHAR(255) UNIQUE NULL AFTER username")
                 except Error:
                     pass
+                # Migrasi: tambah kolom image_url di prediksi jika belum ada
+                try:
+                    cursor.execute("ALTER TABLE prediksi ADD COLUMN image_url VARCHAR(255) NULL AFTER tanggal_prediksi")
+                except Error:
+                    pass
                 conn.commit()
                 cursor.close()
                 conn.close()
@@ -185,6 +190,7 @@ def init_db():
                     hasil_prediksi TEXT NOT NULL,
                     confidence_score REAL NOT NULL,
                     tanggal_prediksi TIMESTAMP NOT NULL,
+                    image_url TEXT NULL,
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
                 )
             """)
@@ -196,6 +202,11 @@ def init_db():
             # Migrasi: tambah kolom email di users jika belum ada
             try:
                 cursor.execute("ALTER TABLE users ADD COLUMN email TEXT UNIQUE")
+            except Exception:
+                pass
+            # Migrasi: tambah kolom image_url di prediksi jika belum ada
+            try:
+                cursor.execute("ALTER TABLE prediksi ADD COLUMN image_url TEXT")
             except Exception:
                 pass
             conn.commit()
@@ -225,6 +236,19 @@ def register_user(username, email, password):
             return False, err
         try:
             cursor = conn.cursor()
+            # Cek apakah username sudah terdaftar
+            cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+            if cursor.fetchone():
+                conn.close()
+                return False, "Username sudah digunakan. Silakan pilih username lain."
+                
+            # Cek apakah email sudah terdaftar
+            if email:
+                cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
+                if cursor.fetchone():
+                    conn.close()
+                    return False, "Email sudah pernah digunakan untuk akun lain. Silakan gunakan email lain atau masuk ke akun Anda."
+            
             cursor.execute(
                 "INSERT INTO users (username, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
                 (username, email, hashed_pwd, created_at)
@@ -232,8 +256,11 @@ def register_user(username, email, password):
             conn.commit()
             conn.close()
             return True, None
-        except sqlite3.IntegrityError:
-            return False, "Username sudah digunakan."
+        except sqlite3.IntegrityError as e:
+            err_msg = str(e).lower()
+            if "email" in err_msg:
+                return False, "Email sudah pernah digunakan untuk akun lain."
+            return False, "Username sudah digunakan. Silakan pilih username lain."
         except Exception as e:
             return False, e
     else:
@@ -242,6 +269,21 @@ def register_user(username, email, password):
             return False, err
         try:
             cursor = conn.cursor()
+            # Cek apakah username sudah terdaftar
+            cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+            if cursor.fetchone():
+                cursor.close()
+                conn.close()
+                return False, "Username sudah digunakan. Silakan pilih username lain."
+                
+            # Cek apakah email sudah terdaftar
+            if email:
+                cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
+                if cursor.fetchone():
+                    cursor.close()
+                    conn.close()
+                    return False, "Email sudah pernah digunakan untuk akun lain. Silakan gunakan email lain atau masuk ke akun Anda."
+            
             cursor.execute(
                 "INSERT INTO users (username, email, password_hash, created_at) VALUES (%s, %s, %s, %s)",
                 (username, email, hashed_pwd, created_at)
@@ -250,8 +292,11 @@ def register_user(username, email, password):
             cursor.close()
             conn.close()
             return True, None
-        except mysql.connector.IntegrityError:
-            return False, "Username sudah digunakan."
+        except mysql.connector.IntegrityError as e:
+            err_msg = str(e).lower()
+            if "email" in err_msg:
+                return False, "Email sudah pernah digunakan untuk akun lain."
+            return False, "Username sudah digunakan. Silakan pilih username lain."
         except Error as e:
             return False, e
 
@@ -398,8 +443,8 @@ def delete_session(token):
 # OPERASI RIWAYAT PREDIKSI
 # ==========================================
 
-def save_prediction(nama_file, hasil_prediksi, confidence_score, user_id=None):
-    """Menyimpan hasil prediksi ke database (bisa dikaitkan ke user_id atau None untuk guest)"""
+def save_prediction(nama_file, hasil_prediksi, confidence_score, user_id=None, image_url=None):
+    """Menyimpan hasil prediksi ke database (bisa dikaitkan ke user_id atau None untuk guest, beserta image_url WebP)"""
     global USE_SQLITE
     tanggal_sekarang = datetime.now()
     
@@ -410,8 +455,8 @@ def save_prediction(nama_file, hasil_prediksi, confidence_score, user_id=None):
         try:
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO prediksi (user_id, nama_file, hasil_prediksi, confidence_score, tanggal_prediksi) VALUES (?, ?, ?, ?, ?)",
-                (user_id, nama_file, hasil_prediksi, float(confidence_score), tanggal_sekarang)
+                "INSERT INTO prediksi (user_id, nama_file, hasil_prediksi, confidence_score, tanggal_prediksi, image_url) VALUES (?, ?, ?, ?, ?, ?)",
+                (user_id, nama_file, hasil_prediksi, float(confidence_score), tanggal_sekarang, image_url)
             )
             conn.commit()
             conn.close()
@@ -425,13 +470,13 @@ def save_prediction(nama_file, hasil_prediksi, confidence_score, user_id=None):
             print("Koneksi MySQL terputus. Mencoba beralih ke SQLite untuk menyimpan...")
             USE_SQLITE = True
             init_db()
-            return save_prediction(nama_file, hasil_prediksi, confidence_score, user_id)
+            return save_prediction(nama_file, hasil_prediksi, confidence_score, user_id, image_url)
             
         try:
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO prediksi (user_id, nama_file, hasil_prediksi, confidence_score, tanggal_prediksi) VALUES (%s, %s, %s, %s, %s)",
-                (user_id, nama_file, hasil_prediksi, float(confidence_score), tanggal_sekarang)
+                "INSERT INTO prediksi (user_id, nama_file, hasil_prediksi, confidence_score, tanggal_prediksi, image_url) VALUES (%s, %s, %s, %s, %s, %s)",
+                (user_id, nama_file, hasil_prediksi, float(confidence_score), tanggal_sekarang, image_url)
             )
             conn.commit()
             cursor.close()
@@ -446,7 +491,7 @@ def get_prediction_history(user_id="all"):
     Jika user_id adalah None, mengambil riwayat guest (user_id IS NULL)"""
     global USE_SQLITE
     
-    query = "SELECT id, user_id, nama_file, hasil_prediksi, confidence_score, tanggal_prediksi FROM prediksi"
+    query = "SELECT id, user_id, nama_file, hasil_prediksi, confidence_score, tanggal_prediksi, image_url FROM prediksi"
     params = ()
     
     if user_id == "all":
@@ -475,7 +520,8 @@ def get_prediction_history(user_id="all"):
                     'nama_file': row[2],
                     'hasil_prediksi': row[3],
                     'confidence_score': row[4],
-                    'tanggal_prediksi': row[5]
+                    'tanggal_prediksi': row[5],
+                    'image_url': row[6] if len(row) > 6 else None
                 })
             return history, None
         except Exception as e:
@@ -504,9 +550,109 @@ def get_prediction_history(user_id="all"):
                     'nama_file': row[2],
                     'hasil_prediksi': row[3],
                     'confidence_score': row[4],
-                    'tanggal_prediksi': row[5]
+                    'tanggal_prediksi': row[5],
+                    'image_url': row[6] if len(row) > 6 else None
                 })
             return history, None
+        except Error as e:
+            return [], e
+
+def get_user_photos(user_id=None):
+    """Mengambil riwayat foto aktif untuk user_id tertentu (atau guest jika None), diurutkan dari yang terlama (ASC)"""
+    global USE_SQLITE
+    query = "SELECT id, image_url, tanggal_prediksi FROM prediksi WHERE image_url IS NOT NULL AND "
+    if user_id is None:
+        query += "user_id IS NULL ORDER BY tanggal_prediksi ASC"
+        params = ()
+    else:
+        query += "user_id = ? ORDER BY tanggal_prediksi ASC" if USE_SQLITE else "user_id = %s ORDER BY tanggal_prediksi ASC"
+        params = (user_id,)
+    
+    if USE_SQLITE:
+        conn, err = get_sqlite_connection()
+        if not conn:
+            return [], err
+        try:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            conn.close()
+            return [{'id': r[0], 'image_url': r[1], 'tanggal_prediksi': r[2]} for r in rows], None
+        except Exception as e:
+            return [], e
+    else:
+        conn, err = get_mysql_connection(select_db=True)
+        if not conn:
+            return [], err
+        try:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            return [{'id': r[0], 'image_url': r[1], 'tanggal_prediksi': r[2]} for r in rows], None
+        except Error as e:
+            return [], e
+
+def clear_prediction_image(prediction_id):
+    """Menghapus image_url di database setelah berkas fisik dihapus oleh storage manager"""
+    global USE_SQLITE
+    if USE_SQLITE:
+        conn, err = get_sqlite_connection()
+        if not conn:
+            return False
+        try:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE prediksi SET image_url = NULL WHERE id = ?", (prediction_id,))
+            conn.commit()
+            conn.close()
+            return True
+        except Exception:
+            return False
+    else:
+        conn, err = get_mysql_connection(select_db=True)
+        if not conn:
+            return False
+        try:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE prediksi SET image_url = NULL WHERE id = %s", (prediction_id,))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return True
+        except Error:
+            return False
+
+def get_expired_photos(retention_days=7):
+    """Mengambil daftar riwayat foto yang lebih lama dari retention_days"""
+    global USE_SQLITE
+    cutoff = datetime.now() - timedelta(days=retention_days)
+    query = "SELECT id, image_url, tanggal_prediksi FROM prediksi WHERE image_url IS NOT NULL AND tanggal_prediksi < ?" if USE_SQLITE else "SELECT id, image_url, tanggal_prediksi FROM prediksi WHERE image_url IS NOT NULL AND tanggal_prediksi < %s"
+    params = (cutoff,)
+    
+    if USE_SQLITE:
+        conn, err = get_sqlite_connection()
+        if not conn:
+            return [], err
+        try:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            conn.close()
+            return [{'id': r[0], 'image_url': r[1], 'tanggal_prediksi': r[2]} for r in rows], None
+        except Exception as e:
+            return [], e
+    else:
+        conn, err = get_mysql_connection(select_db=True)
+        if not conn:
+            return [], err
+        try:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            return [{'id': r[0], 'image_url': r[1], 'tanggal_prediksi': r[2]} for r in rows], None
         except Error as e:
             return [], e
 
