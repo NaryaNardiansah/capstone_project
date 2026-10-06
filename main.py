@@ -26,14 +26,29 @@ app = FastAPI(
     redoc_url=None
 )
 
-# Konfigurasi CORS (Cross-Origin Resource Sharing) agar API bisa diakses oleh frontend lain (web/mobile)
+# Batasi origin yang diizinkan untuk keamanan CORS
+cors_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+if cors_origins_env:
+    allowed_origins = [orig.strip() for orig in cors_origins_env.split(",") if orig.strip()]
+else:
+    allowed_origins = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Batas keamanan unggahan berkas dan pencegahan image bomb
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024
+Image.MAX_IMAGE_PIXELS = 10_000_000
 
 # Mount folder static uploads untuk akses thumbnail WebP terkompresi
 storage_manager.ensure_upload_dir()
@@ -141,21 +156,9 @@ def get_dataset_count() -> int:
     except Exception:
         return 0
 
-def set_dataset_count(count: int) -> None:
-    with open(DATASET_COUNT_FILE, "w", encoding="utf-8") as f:
-        f.write(str(count))
-
 @app.get("/dataset/count", tags=["Dataset"])
 def dataset_count():
     return {"total": get_dataset_count()}
-
-@app.post("/dataset/set", tags=["Dataset"])
-def dataset_set(payload: dict):
-    count = payload.get("total")
-    if not isinstance(count, int) or count < 0:
-        raise HTTPException(status_code=400, detail="Invalid count")
-    set_dataset_count(count)
-    return {"status": "success", "total": count}
 
 @app.get("/", tags=["Sistem"])
 def read_root():
@@ -202,7 +205,24 @@ async def predict_chili(
         
     try:
         contents = await file.read()
-        image = Image.open(io.BytesIO(contents)).convert("RGB")
+        if len(contents) > MAX_UPLOAD_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail="Ukuran gambar melebihi batas maksimal 10 MB. Harap unggah berkas yang lebih kecil."
+            )
+
+        try:
+            image = Image.open(io.BytesIO(contents)).convert("RGB")
+        except Image.DecompressionBombError:
+            raise HTTPException(
+                status_code=400,
+                detail="Resolusi gambar terlalu besar dan berpotensi membebani server."
+            )
+        except Exception:
+            raise HTTPException(
+                status_code=400,
+                detail="Berkas gambar rusak atau tidak dapat diproses."
+            )
 
         try:
             prediction_label, confidence, all_probs = klasifikasi.classify_cabai(
@@ -303,20 +323,17 @@ def get_history(current_user: dict = Depends(get_optional_user)):
     }
 
 @app.delete("/history/{record_id}", tags=["Database"])
-def delete_history_record(record_id: int):
-    """Menghapus satu data riwayat berdasarkan ID"""
-    # Ambil riwayat all untuk cek keberadaan ID
-    history_list, err = database.get_prediction_history(user_id="all")
-    if err:
-         raise HTTPException(status_code=500, detail=f"Gagal memvalidasi ID database: {str(err)}")
-         
-    id_exists = any(item['id'] == record_id for item in history_list)
-    if not id_exists:
-        raise HTTPException(status_code=404, detail=f"Data dengan ID {record_id} tidak ditemukan.")
-        
-    success, del_err = database.delete_prediction(record_id)
+def delete_history_record(
+    record_id: int,
+    current_user: dict = Depends(get_optional_user)
+):
+    """Menghapus data riwayat dengan validasi kepemilikan akun."""
+    user_id = current_user["user_id"] if current_user else None
+    success, del_err = database.delete_prediction(record_id, user_id=user_id)
     if not success:
-        raise HTTPException(status_code=500, detail=f"Gagal menghapus data: {str(del_err)}")
+        err_msg = str(del_err)
+        status_code = 403 if "izin" in err_msg.lower() else 404
+        raise HTTPException(status_code=status_code, detail=err_msg)
         
     return {
         "status": "success",

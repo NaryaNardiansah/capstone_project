@@ -6,11 +6,17 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta
 
-# Konfigurasi MySQL default
-MYSQL_HOST = "127.0.0.1"
-MYSQL_USER = "root"
-MYSQL_PASSWORD = ""
-MYSQL_DATABASE = "cabai_db"
+from dotenv import load_dotenv
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
+
+# Konfigurasi MySQL dari environment variables dengan fallback default
+MYSQL_HOST = os.getenv("MYSQL_HOST", "127.0.0.1")
+MYSQL_USER = os.getenv("MYSQL_USER", "root")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
+MYSQL_DATABASE = os.getenv("MYSQL_DATABASE", "cabai_db")
+
+# Durasi maksimal sesi token (hari) sebelum otomatis kedaluwarsa
+SESSION_MAX_AGE_DAYS = int(os.getenv("SESSION_MAX_AGE_DAYS", "7"))
 
 USE_SQLITE = False
 SQLITE_FILE = "cabai_db.sqlite"
@@ -365,8 +371,22 @@ def authenticate_user(username, password):
         except Error as e:
             return None, e
 
+def is_session_expired(created_at, max_days: int = SESSION_MAX_AGE_DAYS) -> bool:
+    """Periksa apakah timestamp sesi sudah melampaui batas hari aktif."""
+    if not created_at:
+        return True
+    if isinstance(created_at, str):
+        try:
+            created_at = datetime.fromisoformat(created_at.replace("Z", ""))
+        except Exception:
+            try:
+                created_at = datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")
+            except Exception:
+                return False
+    return datetime.now() - created_at > timedelta(days=max_days)
+
 def verify_session(token):
-    """Memverifikasi token sesi dan mengembalikan (user_id, username)"""
+    """Memverifikasi token sesi dan validitas masa aktifnya."""
     global USE_SQLITE
     if not token:
         return None, None
@@ -378,14 +398,23 @@ def verify_session(token):
         try:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT users.id, users.username FROM sessions JOIN users ON sessions.user_id = users.id WHERE sessions.token = ?", 
+                "SELECT users.id, users.username, sessions.created_at FROM sessions JOIN users ON sessions.user_id = users.id WHERE sessions.token = ?", 
                 (token,)
             )
             row = cursor.fetchone()
+            if not row:
+                conn.close()
+                return None, None
+                
+            user_id, username, created_at = row
+            if is_session_expired(created_at):
+                cursor.execute("DELETE FROM sessions WHERE token = ?", (token,))
+                conn.commit()
+                conn.close()
+                return None, None
+                
             conn.close()
-            if row:
-                return row[0], row[1]
-            return None, None
+            return user_id, username
         except Exception:
             return None, None
     else:
@@ -395,15 +424,26 @@ def verify_session(token):
         try:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT users.id, users.username FROM sessions JOIN users ON sessions.user_id = users.id WHERE sessions.token = %s", 
+                "SELECT users.id, users.username, sessions.created_at FROM sessions JOIN users ON sessions.user_id = users.id WHERE sessions.token = %s", 
                 (token,)
             )
             row = cursor.fetchone()
+            if not row:
+                cursor.close()
+                conn.close()
+                return None, None
+                
+            user_id, username, created_at = row
+            if is_session_expired(created_at):
+                cursor.execute("DELETE FROM sessions WHERE token = %s", (token,))
+                conn.commit()
+                cursor.close()
+                conn.close()
+                return None, None
+                
             cursor.close()
             conn.close()
-            if row:
-                return row[0], row[1]
-            return None, None
+            return user_id, username
         except Error:
             return None, None
 
@@ -656,8 +696,8 @@ def get_expired_photos(retention_days=7):
         except Error as e:
             return [], e
 
-def delete_prediction(prediction_id):
-    """Menghapus data riwayat berdasarkan ID"""
+def delete_prediction(prediction_id: int, user_id=None):
+    """Menghapus data riwayat dengan validasi kepemilikan dan menghapus berkas thumbnail fisik jika ada."""
     global USE_SQLITE
     
     if USE_SQLITE:
@@ -666,9 +706,30 @@ def delete_prediction(prediction_id):
             return False, err
         try:
             cursor = conn.cursor()
+            cursor.execute("SELECT user_id, image_url FROM prediksi WHERE id = ?", (prediction_id,))
+            row = cursor.fetchone()
+            if not row:
+                conn.close()
+                return False, "Data riwayat tidak ditemukan."
+            
+            record_user_id, image_url = row
+            if user_id != record_user_id:
+                conn.close()
+                return False, "Anda tidak memiliki izin untuk menghapus riwayat ini."
+                
             cursor.execute("DELETE FROM prediksi WHERE id = ?", (prediction_id,))
             conn.commit()
             conn.close()
+            
+            if image_url:
+                fname = os.path.basename(image_url)
+                fpath = os.path.join(os.path.dirname(__file__), "uploads", "predictions", fname)
+                if os.path.exists(fpath):
+                    try:
+                        os.remove(fpath)
+                    except OSError:
+                        pass
+                        
             return True, None
         except Exception as e:
             return False, e
@@ -678,10 +739,33 @@ def delete_prediction(prediction_id):
             return False, err
         try:
             cursor = conn.cursor()
+            cursor.execute("SELECT user_id, image_url FROM prediksi WHERE id = %s", (prediction_id,))
+            row = cursor.fetchone()
+            if not row:
+                cursor.close()
+                conn.close()
+                return False, "Data riwayat tidak ditemukan."
+                
+            record_user_id, image_url = row
+            if user_id != record_user_id:
+                cursor.close()
+                conn.close()
+                return False, "Anda tidak memiliki izin untuk menghapus riwayat ini."
+                
             cursor.execute("DELETE FROM prediksi WHERE id = %s", (prediction_id,))
             conn.commit()
             cursor.close()
             conn.close()
+            
+            if image_url:
+                fname = os.path.basename(image_url)
+                fpath = os.path.join(os.path.dirname(__file__), "uploads", "predictions", fname)
+                if os.path.exists(fpath):
+                    try:
+                        os.remove(fpath)
+                    except OSError:
+                        pass
+                        
             return True, None
         except Error as e:
             return False, e
