@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import LogoutScreen from '../../components/auth/LogoutScreen';
@@ -197,11 +197,15 @@ export default function DashboardLayout({ children }) {
   };
 
   useEffect(() => {
+    if (showLogout) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      return;
+    }
     startAutoRotate();
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, []);
+  }, [showLogout]);
 
   const handleNextTip = () => {
     try {
@@ -238,11 +242,11 @@ export default function DashboardLayout({ children }) {
     setShowLogout(true);
   };
 
-  const handleLogoutComplete = () => {
+  const handleLogoutComplete = useCallback(() => {
     localStorage.removeItem('token');
     localStorage.removeItem('username');
     window.location.replace('/');
-  };
+  }, []);
 
   if (!mounted) return null;
 

@@ -270,7 +270,8 @@ function playMelancholicMelody() {
 
 export default function LogoutScreen({ onComplete }) {
   const [progress, setProgress] = useState(0);
-  const [totalMs, setTotalMs] = useState(40000); // 40 detik (8 baris * 5 detik per baris)
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const [totalMs, setTotalMs] = useState(40000);
   const [lyrics, setLyrics] = useState([]);
   const [isExiting, setIsExiting] = useState(false);
   const [heartBurst, setHeartBurst] = useState([]);
@@ -282,8 +283,14 @@ export default function LogoutScreen({ onComplete }) {
   const synthRef = useRef(null);
   const lyricContainerRef = useRef(null);
   const itemRefs = useRef([]);
+  const onCompleteRef = useRef(onComplete);
+  const totalMsRef = useRef(40000);
 
-  // Putar melodi sendu perpisahan (Coba /audio/farewell.mp3 dahulu, fallback ke Web Audio synthesizer)
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  // Audio perpisahan: coba audio file dahulu, fallback ke Web Audio synthesizer
   useEffect(() => {
     let isCancelled = false;
 
@@ -304,7 +311,6 @@ export default function LogoutScreen({ onComplete }) {
             }
           })
           .catch(() => {
-            // Jika file mp3 tidak ada atau autoplay ditolak, putar melodi kotak musik Web Audio API
             if (!isCancelled) {
               synthRef.current = playMelancholicMelody();
             }
@@ -338,43 +344,41 @@ export default function LogoutScreen({ onComplete }) {
     }
   };
 
-  // Instant skip / keluar tanpa menunggu 1 menit selesai
   const handleImmediateExit = () => {
     setIsExiting(true);
     if (synthRef.current) synthRef.current.stop();
     if (audioElRef.current) audioElRef.current.pause();
     setTimeout(() => {
-      onComplete?.();
+      onCompleteRef.current?.();
     }, 450);
   };
 
-  // Pilih satu set bait lirik puitis acak saat mulai
+  // Pilih cerita perpisahan acak dan format nama pengguna
   useEffect(() => {
-    const rawUser = localStorage.getItem('username');
-    const user = rawUser && rawUser.trim() ? rawUser.trim() : 'kamu';
+    const rawUser = typeof window !== 'undefined' ? localStorage.getItem('username') : '';
+    const trimmed = rawUser ? rawUser.trim() : '';
+    const formattedUser = trimmed 
+      ? (trimmed.charAt(0).toUpperCase() + trimmed.slice(1)) 
+      : 'Sobat';
+
     const randStory = FAREWELL_STORIES[Math.floor(Math.random() * FAREWELL_STORIES.length)];
-    
-    // Ganti placeholder {user} pada setiap baris lirik
-    const processed = randStory.map((line) => {
-      if (line.includes("{user}")) {
-        return line.replace(/{user}/g, user);
-      }
-      return line.replace(/\bkamu\b/gi, user);
-    });
+    const processed = randStory.map((line) => line.replace(/{user}/g, formattedUser));
 
     setLyrics(processed);
-    setTotalMs(processed.length * 5000); // 5 detik per baris (8 baris = 40 detik)
+    const duration = processed.length * 5000;
+    setTotalMs(duration);
+    totalMsRef.current = duration;
     setReducedMotion(false);
   }, []);
 
-  // Indeks baris aktif: tepat 5 detik per baris
+  // Indeks baris aktif berdasar waktu elapsed (5 detik per baris)
   const SECONDS_PER_LINE = 5;
-  const currentElapsedSec = (progress / 100) * (totalMs / 1000);
+  const currentElapsedSec = elapsedMs / 1000;
   const autoLineIndex = lyrics.length > 0 
     ? Math.min(lyrics.length - 1, Math.floor(currentElapsedSec / SECONDS_PER_LINE))
     : 0;
 
-  // Animasi translasi vertikal ultra-halus (GPU-accelerated) agar baris aktif selalu berada di tengah
+  // Animasi translasi vertikal agar baris aktif selalu berada di tengah kontainer
   useEffect(() => {
     const updateOffset = () => {
       const activeEl = itemRefs.current[autoLineIndex];
@@ -388,35 +392,44 @@ export default function LogoutScreen({ onComplete }) {
     };
 
     updateOffset();
+    const raf = requestAnimationFrame(updateOffset);
     window.addEventListener('resize', updateOffset);
-    return () => window.removeEventListener('resize', updateOffset);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', updateOffset);
+    };
   }, [autoLineIndex, lyrics]);
 
-  // Progress ticking (Default 60 detik / disesuaikan dengan durasi audio)
+  // Timer continuous independen dari re-render induk
   useEffect(() => {
     const startTime = performance.now();
     let raf;
 
     const tick = (now) => {
-      const elapsed = now - startTime;
-      const pct = Math.min(100, Math.round((elapsed / totalMs) * 100));
+      const elapsed = Math.max(0, now - startTime);
+      const currentTotal = totalMsRef.current;
+      setElapsedMs(elapsed);
+
+      const pct = Math.min(100, (elapsed / currentTotal) * 100);
       setProgress(pct);
 
-      if (pct < 100) {
+      if (elapsed < currentTotal) {
         raf = requestAnimationFrame(tick);
       } else {
         setIsExiting(true);
         if (synthRef.current) synthRef.current.stop();
         if (audioElRef.current) audioElRef.current.pause();
         setTimeout(() => {
-          onComplete?.();
-        }, 550); // Wait for exit animation
+          onCompleteRef.current?.();
+        }, 550);
       }
     };
 
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [onComplete, totalMs]);
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
 
   // Click handler for heart burst interaction
   const handleRabbitInteract = (e) => {
@@ -569,18 +582,18 @@ export default function LogoutScreen({ onComplete }) {
           <SadRabbitSVG size={82} onInteract={handleRabbitInteract} />
         </div>
 
-        {/* ── Spotify / Apple Music Style Multi-Line Lyric Sheet ── */}
+        {/* Multi-Line Lyric Sheet */}
         <div className="mb-3 px-1">
           <div 
             ref={lyricContainerRef}
-            className="relative rounded-2xl bg-gradient-to-b from-rose-50/80 via-white/85 to-rose-50/80 border border-rose-200/90 shadow-2xs h-[168px] overflow-hidden"
+            className="relative rounded-2xl bg-gradient-to-b from-rose-50/80 via-white/85 to-rose-50/80 border border-rose-200/90 shadow-2xs h-[174px] overflow-hidden"
             style={{
-              maskImage: 'linear-gradient(to bottom, transparent 0%, black 18%, black 82%, transparent 100%)',
-              WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 18%, black 82%, transparent 100%)',
+              maskImage: 'linear-gradient(to bottom, transparent 0%, black 16%, black 84%, transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 16%, black 84%, transparent 100%)',
             }}
           >
             <div 
-              className="relative px-2.5 py-14 space-y-2"
+              className="relative px-2.5 py-14 space-y-2.5"
               style={{
                 transform: `translateY(-${translateY}px)`,
                 transition: 'transform 0.85s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -596,10 +609,10 @@ export default function LogoutScreen({ onComplete }) {
                     ref={(el) => (itemRefs.current[idx] = el)}
                     className={`px-3 py-2 rounded-xl text-center select-none transition-all duration-700 ease-out ${
                       isActive
-                        ? 'bg-gradient-to-r from-rose-200/90 via-rose-100 to-rose-200/90 border border-rose-300 text-rose-950 font-bold text-[13px] sm:text-[14px] shadow-xs scale-100 opacity-100'
+                        ? 'bg-rose-100/95 border border-rose-300 text-rose-950 font-bold text-[13px] sm:text-[14px] shadow-xs scale-100 opacity-100'
                         : isPast
-                        ? 'text-rose-400/50 font-medium text-[12px] sm:text-[13px] scale-95 opacity-50'
-                        : 'text-rose-700/60 font-medium text-[12px] sm:text-[13px] scale-95 opacity-65'
+                        ? 'text-rose-800/60 font-medium text-[12px] sm:text-[13px] scale-95 opacity-60'
+                        : 'text-rose-900/70 font-medium text-[12px] sm:text-[13px] scale-95 opacity-75'
                     }`}
                     style={{ lineHeight: 1.5 }}
                   >
@@ -648,9 +661,9 @@ export default function LogoutScreen({ onComplete }) {
             />
           </div>
           
-          <div className="flex items-center justify-between w-[84%] mt-1.5 text-[10px] text-rose-400 font-semibold tracking-wider uppercase">
+          <div className="flex items-center justify-between w-[84%] mt-1.5 text-[10px] text-rose-500 font-semibold tracking-wider uppercase">
             <span>Alunan Lirik & Kenangan</span>
-            <span>{Math.max(0, Math.ceil((totalMs * (1 - progress / 100)) / 1000))}s tersisa</span>
+            <span>{Math.max(0, Math.ceil((totalMs - elapsedMs) / 1000))}s tersisa</span>
           </div>
 
           {/* Tombol Sudahi Galau & Masuk Login */}

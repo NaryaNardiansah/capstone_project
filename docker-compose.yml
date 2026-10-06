@@ -12,7 +12,7 @@ services:
       - ./cabai_db.sqlite:/app/cabai_db.sqlite
     environment:
       - PYTHONUNBUFFERED=1
-      - ALLOWED_ORIGINS=http://localhost:3000,http://103.18.76.90:3000,http://103.18.76.90
+      - ALLOWED_ORIGINS=http://localhost:3000,http://103.18.76.90:3000,http://103.18.76.90,https://deteksicabai.duckdns.org,http://deteksicabai.duckdns.org
     env_file:
       - path: .env
         required: false
