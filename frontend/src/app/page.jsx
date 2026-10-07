@@ -65,17 +65,6 @@ export default function AuthPage() {
     }));
   };
 
-  // Shortcut cepat untuk isi akun demo pengujian
-  const handleQuickFill = () => {
-    setMode('login');
-    setForm({
-      username: 'apapapaa',
-      email: '',
-      password: 'Parkir123!',
-      confirmPassword: '',
-    });
-    setError('');
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -379,19 +368,6 @@ export default function AuthPage() {
             </button>
           </form>
 
-          {/* Quick Demo Fill Helper */}
-          {isLogin && (
-            <div className="mt-4 pt-3 border-t border-stone-100 text-center">
-              <button
-                type="button"
-                onClick={handleQuickFill}
-                className="text-xs text-rose-600 hover:text-rose-700 font-medium hover:underline transition-all inline-flex items-center gap-1"
-              >
-                <span>⚡</span>
-                <span>Isi Akun Demo Cepat (apapapaa)</span>
-              </button>
-            </div>
-          )}
 
           {/* Switch mode */}
           <p className="mt-5 text-center text-sm text-stone-500">
